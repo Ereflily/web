@@ -126,31 +126,26 @@ class ModelMetaClass(type):
         logging.info("found Model : {}(table {})".format(name, tableName))
         mappings = dict()
         fields = []
-        primary_key = None
         for k, v in attrs.items():
             if isinstance(v, Field):
                 logging.info("found mapping: {} ==> {}".format(k, v))
                 mappings[k] = v
-                if v.primary_key:
-                    if primary_key:
-                        raise SQLError('Duplicate primary key for field: {}'.format(k))
-                    primary_key = k
-                else:
-                    fields.append(k)
-        if not primary_key:
-            raise SQLError('have no primary for this table')
+                fields.append(k)
         for k in mappings:
             attrs.pop(k)
         escapeFiled = list(map(lambda f: '`{}`'.format(f), fields))
         attrs['__table__'] = tableName
         attrs['__where__'] = []
         attrs['__args__'] = {}
-        attrs['__primaryKey__'] = primary_key
         attrs['__fields__'] = fields
+        attrs['__mappings__'] = mappings
         attrs['__select__'] = []
         attrs['__limit__'] = []
         attrs['__orderBy__'] = []
-
+        attrs['__sql__'] = []
+        attrs['__update__'] = []
+        attrs['__insert__'] = "insert into `{}`({}) VALUES({}) ".format(tableName, ','.join(escapeFiled), create_args_string(len(fields)))
+        attrs['__delete__'] = "delete from {}".format(tableName)
         return type.__new__(cls, name, base, attrs)
 
 
@@ -176,7 +171,7 @@ class Model(dict, metaclass=ModelMetaClass):
         if value is None:
             field = self.__mappings__[key]
             if field.default is not None:
-                value = field.default() if callable(field.default()) else field.default
+                value = field.default() if callable(field.default) else field.default
                 logging.debug('using default value for %s: %s' % (key, str(value)))
                 setattr(self, key, value)
         return value
@@ -190,34 +185,42 @@ class Model(dict, metaclass=ModelMetaClass):
     def where(self, params):
         if isinstance(params, list):
             for param in params:
-                if len(param) > 2:
-                    self.__where__.append("`{}` {} ?".format(param[0],param[2]))
-                    self.__args__['where'].append(param[1])
-                elif len(param) == 2:
-                    self.__where__.append("`{}` = ?".format(param[0]))
-                    self.__args__['where'].append(param[1])
+                if isinstance(param, list):
+                    if len(param) > 2:
+                        self.__where__.append("`{}` {} ?".format(param[0],param[2]))
+                        self.__args__['where'].append(param[1])
+                    elif len(param) == 2:
+                        self.__where__.append("`{}` = ?".format(param[0]))
+                        self.__args__['where'].append(param[1])
+                else:
+                    if len(params) > 2:
+                        self.__where__.append("`{}` {} ?".format(params[0], params[2]))
+                        self.__args__['where'].append(params[1])
+                    elif len(params) == 2:
+                        self.__where__.append("`{}` = ?".format(params[0]))
+                        self.__args__['where'].append(params[1])
+                    break
         else:
             raise ValueError("condition must be a list")
         return self
 
     async def all(self):
-        sql = []
         if len(self.__select__) > 0:
-            sql.append("select {} from {}".format(','.join(self.__select__), self.__table__))
+            self.__sql__.append("select {} from {}".format(','.join(self.__select__), self.__table__))
         else:
-            sql.append("select * from {}".format(self.__table__))
+            self.__sql__.append("select * from {}".format(self.__table__))
         args = []
         if len(self.__where__) > 0:
-            sql.append('where')
-            sql.append(' and '.join(self.__where__))
+            self.__sql__.append('where')
+            self.__sql__.append(' and '.join(self.__where__))
             args.extend(self.__args__['where'])
         if len(self.__orderBy__) > 0:
-            sql.append('order by')
-            sql.extend(self.__orderBy__)
+            self.__sql__.append('order by')
+            self.__sql__.extend(self.__orderBy__)
         if len(self.__limit__) > 0:
-            sql.append('limit')
-            sql.extend(self.__limit__)
-        rs = await select(' '.join(sql), args)
+            self.__sql__.append('limit')
+            self.__sql__.extend(self.__limit__)
+        rs = await select(' '.join(self.__sql__), args)
         if len(rs) == 0:
             return None
         return [self.__class__(**r) for r in rs]
@@ -244,69 +247,69 @@ class Model(dict, metaclass=ModelMetaClass):
             self.__orderBy__.append("{} {}".format(params[0], params[1]))
         return self
 
-    @classmethod
-    async def findNum(cls, selectFiled, where=None, args=None):
-        sql = ['select count(`{}`) __num__ from `{}`'.format(selectFiled, cls.__table__)]
-        if args is None:
-            args = []
-        if where:
-            sql.append('where')
-            if isinstance(where, dict):
-                if len(where) > 1:
-                    sql.append(' and '.join(map(lambda f: '`{}` = "?"'.format(f), list(where.keys()))))
-                else:
-                    sql.append('`{}` = "?"'.format(list(where.keys())[0]))
-                args.extend(list(where.values()))
-            else:
-                raise ValueError(r'where must be a dict')
-
-        rs = await select(' '.join(sql), args)
-        if len(rs) == 0:
-            return None
-        return rs[0]['__num__']
+    async def count(self):
+        self.__sql__.append("select count(*) as cnt from {}".format(self.__table__))
+        args = []
+        if len(self.__where__) > 0:
+            self.__sql__.append('where')
+            self.__sql__.append(' and '.join(self.__where__))
+            args.extend(self.__args__['where'])
+        rs = await select(' '.join(self.__sql__), args)
+        return rs[0]['cnt']
 
     async def save(self):
         args = list()
-        args.append(self.getValueOrDefault(self.__primaryKey__))
         args.extend(list(map(self.getValueOrDefault, self.__fields__)))
         rs = await execute(self.__insert__, args)
         if rs != 1:
             logging.warning('failed to insert record: affected rows: %s' % rs)
+            return False
+        return True
 
-    async def update(self, where=None):
-        sql = list(self.__update__)
-        args = list(map(self.getValueOrDefault, self.__fields__))
-        args.append(self.getValueOrDefault(self.__primary_key__))
-        if where:
-            sql.append('where')
-            if isinstance(where, dict):
-                if len(where) > 1:
-                    sql.append(' and '.join(map(lambda f: '`{}` = "?"'.format(f), list(where.keys()))))
+    async def update(self, params):
+        if isinstance(params, list):
+            args = []
+            for param in params:
+                if isinstance(param, list):
+                    if len(param) > 2:
+                        self.__update__.append("`{}` {} ?".format(param[0],param[2]))
+                        args.append(param[1])
+                    elif len(param) == 2:
+                        self.__update__.append("`{}` = ?".format(param[0]))
+                        args.append(param[1])
                 else:
-                    sql.append('`{}` = "?"'.format(list(where.keys())[0]))
-                args.extend(list(where.values()))
-            else:
-                raise ValueError(r'where must be a dict')
-        rs = await execute(' '.join(sql), args)
-        if rs < 1:
-            logging.warning('failed to update')
+                    if len(params) > 2:
+                        self.__update__.append("`{}` {} ?".format(params[0], params[2]))
+                        args.append(params[1])
+                    elif len(params) == 2:
+                        self.__update__.append("`{}` = ?".format(params[0]))
+                        args.append(params[1])
+                    break
+        else:
+            raise ValueError("condition must be a list")
+        self.__sql__.append("update {} set {}".format(self.__table__, ','.join(self.__update__)))
+        if len(self.__where__) > 0:
+            self.__sql__.append('where')
+            self.__sql__.append(' and '.join(self.__where__))
+            args.extend(self.__args__['where'])
+        rs = await execute(' '.join(self.__sql__), args)
+        if rs == 0:
+            logging.warning("fail to update record: affect rows {}".format(rs))
+            return False
+        return True
 
-    async def remove(self, where=None):
-        sql = list(self.__delete__)
+    async def remove(self):
+        self.__sql__.append(self.__delete__)
         args = []
-        if where:
-            sql.append('where')
-            if isinstance(where, dict):
-                if len(where) > 1:
-                    sql.append(' and '.join(map(lambda f: '`{}` = "?"'.format(f), list(where.keys()))))
-                else:
-                    sql.append('`{}` = "?"'.format(list(where.keys())[0]))
-                args.extend(list(where.values()))
-            else:
-                raise ValueError(r'where must be a dict')
-        rs = await execute(' '.join(sql), args)
+        if len(self.__where__) > 0:
+            self.__sql__.append('where')
+            self.__sql__.append(' and '.join(self.__where__))
+            args.extend(self.__args__['where'])
+        rs = await execute(' '.join(self.__sql__), args)
         if rs < 1:
             logging.warning("delete failed")
+            return False
+        return True
 
 
 if __name__ == '__main__':
@@ -320,7 +323,8 @@ if __name__ == '__main__':
 
     async def test(loop):
         await create_pool(loop, db='test')
-        s = await user.find().where([['id',1,'>=']]).choose(['id']).orderBy(['id', 'asc']).limit(2).all()
+        s = await user.where(['id',1]).update(['password',1])
+        #await user.save()
         print(s)
         exit()
 
