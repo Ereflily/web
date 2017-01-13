@@ -149,6 +149,7 @@ class ModelMetaClass(type):
         attrs['__fields__'] = fields
         attrs['__select__'] = []
         attrs['__limit__'] = []
+        attrs['__orderBy__'] = []
 
         return type.__new__(cls, name, base, attrs)
 
@@ -210,6 +211,9 @@ class Model(dict, metaclass=ModelMetaClass):
             sql.append('where')
             sql.append(' and '.join(self.__where__))
             args.extend(self.__args__['where'])
+        if len(self.__orderBy__) > 0:
+            sql.append('order by')
+            sql.extend(self.__orderBy__)
         if len(self.__limit__) > 0:
             sql.append('limit')
             sql.extend(self.__limit__)
@@ -233,6 +237,11 @@ class Model(dict, metaclass=ModelMetaClass):
             self.__limit__.append(str(params))
         else:
             raise ValueError("error type of parameters")
+        return self
+
+    def orderBy(self, params):
+        if isinstance(params, list):
+            self.__orderBy__.append("{} {}".format(params[0], params[1]))
         return self
 
     @classmethod
@@ -311,7 +320,7 @@ if __name__ == '__main__':
 
     async def test(loop):
         await create_pool(loop, db='test')
-        s = await user.find().where([['id',1,'>=']]).choose(['id']).limit(1).all()
+        s = await user.find().where([['id',1,'>=']]).choose(['id']).orderBy(['id', 'asc']).limit(2).all()
         print(s)
         exit()
 
