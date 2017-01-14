@@ -182,26 +182,23 @@ class Model(dict, metaclass=ModelMetaClass):
             raise ValueError("can not use Model")
         return cls()
 
-    def where(self, params):
-        if isinstance(params, list):
-            for param in params:
-                if isinstance(param, list):
-                    if len(param) > 2:
-                        self.__where__.append("`{}` {} ?".format(param[0],param[2]))
-                        self.__args__['where'].append(param[1])
-                    elif len(param) == 2:
-                        self.__where__.append("`{}` = ?".format(param[0]))
-                        self.__args__['where'].append(param[1])
-                else:
-                    if len(params) > 2:
-                        self.__where__.append("`{}` {} ?".format(params[0], params[2]))
-                        self.__args__['where'].append(params[1])
-                    elif len(params) == 2:
-                        self.__where__.append("`{}` = ?".format(params[0]))
-                        self.__args__['where'].append(params[1])
-                    break
-        else:
-            raise ValueError("condition must be a list")
+    def where(self, *params):
+        for param in params:
+            if isinstance(param, list):
+                if len(param) > 2:
+                    self.__where__.append("`{}` {} ?".format(param[0],param[2]))
+                    self.__args__['where'].append(param[1])
+                elif len(param) == 2:
+                    self.__where__.append("`{}` = ?".format(param[0]))
+                    self.__args__['where'].append(param[1])
+            else:
+                if len(params) > 2:
+                    self.__where__.append("`{}` {} ?".format(params[0], params[2]))
+                    self.__args__['where'].append(params[1])
+                elif len(params) == 2:
+                    self.__where__.append("`{}` = ?".format(params[0]))
+                    self.__args__['where'].append(params[1])
+                break
         return self
 
     async def all(self):
@@ -225,9 +222,8 @@ class Model(dict, metaclass=ModelMetaClass):
             return None
         return [self.__class__(**r) for r in rs]
 
-    def choose(self, params):
-        if isinstance(params, list):
-            self.__select__.append(','.join(params))
+    def choose(self, *params):
+        self.__select__.append(','.join(params))
         return self
 
     def limit(self, params):
@@ -266,27 +262,11 @@ class Model(dict, metaclass=ModelMetaClass):
             return False
         return True
 
-    async def update(self, params):
-        if isinstance(params, list):
-            args = []
-            for param in params:
-                if isinstance(param, list):
-                    if len(param) > 2:
-                        self.__update__.append("`{}` {} ?".format(param[0],param[2]))
-                        args.append(param[1])
-                    elif len(param) == 2:
-                        self.__update__.append("`{}` = ?".format(param[0]))
-                        args.append(param[1])
-                else:
-                    if len(params) > 2:
-                        self.__update__.append("`{}` {} ?".format(params[0], params[2]))
-                        args.append(params[1])
-                    elif len(params) == 2:
-                        self.__update__.append("`{}` = ?".format(params[0]))
-                        args.append(params[1])
-                    break
-        else:
-            raise ValueError("condition must be a list")
+    async def update(self, *params):
+        args = []
+        for param in params:
+            self.__update__.append("`{}` = ?".format(param[0]))
+            args.append(param[1])
         self.__sql__.append("update {} set {}".format(self.__table__, ','.join(self.__update__)))
         if len(self.__where__) > 0:
             self.__sql__.append('where')
@@ -323,7 +303,7 @@ if __name__ == '__main__':
 
     async def test(loop):
         await create_pool(loop, db='test')
-        s = await user.where(['id',1]).update(['password',1])
+        s = await user.where(['id',1]).update(['name','hello1'])
         #await user.save()
         print(s)
         exit()
