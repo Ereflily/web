@@ -85,18 +85,24 @@ def add_route(app, func):
     method = getattr(func, '__method__', None)
     path = getattr(func, '__route__', None)
     if method is None or path is None:
-        
+        raise ValueError('@get or @post not defined in {}'.format(func))
+    if not asyncio.iscoroutinefunction(func) and not inspect.isgeneratorfunction(func):
+        func = asyncio.coroutine(func)
+    app.router.add_route(method, path, RequestHandler(func))
 
-async def index(*, name, request):
-    return web.Response(content_type='text/html', body=bytes(name, encoding='utf8'))
+def add_routes(app, module_name):
+    n = module_name.rfind('.')
+    if n == -1:
+        mod = __import__(module_name, globals(), locals())
+    else:
+        name = module_name[n + 1:]
+        mod = getattr(__import__(module_name[:n], globals(), locals(), [name]), name)
+    for attr in dir(mod):
+        if attr.startswith('_'):
+            continue
+        func = getattr(mod, attr)
+        if callable(func):
+            if getattr(func,'__method__', None) and getattr(func, '__route__', None):
+                add_route(app, func)
 
-async def init(loop):
-    app = web.Application(loop = loop)
-    #app.router.add_route("GET", '/{name}.html', RequestHandler(index))
-    add_static(app)
-    srv = await loop.create_server(app.make_handler(), '127.0.0.1', 23456)
-    return srv
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(init(loop))
-loop.run_forever()
