@@ -104,5 +104,3 @@ def add_routes(app, module_name):
         if callable(func):
             if getattr(func,'__method__', None) and getattr(func, '__route__', None):
                 add_route(app, func)
-
-
