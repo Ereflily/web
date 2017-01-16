@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Ernie Peng'
 
-import asyncio, os, inspect, logging, functools
+import asyncio, os, inspect, functools
+import logging;logging.basicConfig(level=logging.INFO)
 from urllib import parse
 from aiohttp import web
 
@@ -88,6 +89,7 @@ def add_route(app, func):
         raise ValueError('@get or @post not defined in {}'.format(func))
     if not asyncio.iscoroutinefunction(func) and not inspect.isgeneratorfunction(func):
         func = asyncio.coroutine(func)
+    logging.info("add {} to routes".format(path))
     app.router.add_route(method, path, RequestHandler(func))
 
 def add_routes(app, module_name):

@@ -3,6 +3,7 @@ __author__ = 'Ernie Peng'
 
 import logging;logging.basicConfig(level=logging.INFO)
 import asyncio, os, json, time
+from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
 from config_default import config
 
@@ -29,3 +30,37 @@ def init_jinja2(app, **kw):
         for name, value in filter.items():
             env.filters[name] = value
     app['__template__'] = env
+
+async def responseFactory(app, handler):
+    async def response(request):
+        logging.info("response handler..")
+        rs = await handler(request)
+        if isinstance(rs, web.StreamResponse):
+            return rs
+        if isinstance(rs, bytes):
+            return web.Response(body=rs,content_type="application/octet-stream")
+        if isinstance(rs, str):
+            if rs.startswith("redirect:"):
+                return web.HTTPFound(rs[9:])
+            return web.Response(body=bytes(rs,encoding='utf8'),content_type="text/html",charset='utf8')
+        if isinstance(rs, dict):
+            if rs['__template__'] is not None:
+                pass
+            else:
+                return web.Response(body=json.dump(rs, ensure_ascii=False, default=lambda o:o.__dict__).encode('utf8'), content_type="text/html", charset='utf8')
+    return response
+
+async def init(loop):
+    await orm.create_pool(loop, **config['db'])
+    app = web.Application(loop=loop, middlewares=[
+        responseFactory
+    ])
+    add_routes(app, 'handler')
+    add_static(app)
+    srv = await loop.create_server(app.make_handler(), '127.0.0.1', 2333)
+    logging.info("start at 127.0.0.1:2333")
+    return srv
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(init(loop))
+loop.run_forever()
