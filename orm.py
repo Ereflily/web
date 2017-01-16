@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Ernie Peng'
 
-import asyncio, logging, aiomysql, sys
+import asyncio, aiomysql
+import logging;logging.basicConfig(level=logging.INFO)
 
 
 def log(sql, args=()):
@@ -136,7 +137,7 @@ class ModelMetaClass(type):
         escapeFiled = list(map(lambda f: '`{}`'.format(f), fields))
         attrs['__table__'] = tableName
         attrs['__where__'] = []
-        attrs['__args__'] = {}
+        attrs['__args__'] = []
         attrs['__fields__'] = fields
         attrs['__mappings__'] = mappings
         attrs['__select__'] = []
@@ -152,7 +153,6 @@ class ModelMetaClass(type):
 class Model(dict, metaclass=ModelMetaClass):
     def __init__(self, **kw):
         super(Model, self).__init__(**kw)
-        self.__args__['where'] = []
 
     def __getattr__(self, key):
         try:
@@ -184,21 +184,12 @@ class Model(dict, metaclass=ModelMetaClass):
 
     def where(self, *params):
         for param in params:
-            if isinstance(param, list):
-                if len(param) > 2:
-                    self.__where__.append("`{}` {} ?".format(param[0],param[2]))
-                    self.__args__['where'].append(param[1])
-                elif len(param) == 2:
-                    self.__where__.append("`{}` = ?".format(param[0]))
-                    self.__args__['where'].append(param[1])
-            else:
-                if len(params) > 2:
-                    self.__where__.append("`{}` {} ?".format(params[0], params[2]))
-                    self.__args__['where'].append(params[1])
-                elif len(params) == 2:
-                    self.__where__.append("`{}` = ?".format(params[0]))
-                    self.__args__['where'].append(params[1])
-                break
+            if len(param) > 2:
+                self.__where__.append("`{}` {} ?".format(param[0],param[2]))
+                self.__args__.append(param[1])
+            elif len(param) == 2:
+                self.__where__.append("`{}` = ?".format(param[0]))
+                self.__args__.append(param[1])
         return self
 
     async def all(self):
@@ -210,7 +201,7 @@ class Model(dict, metaclass=ModelMetaClass):
         if len(self.__where__) > 0:
             self.__sql__.append('where')
             self.__sql__.append(' and '.join(self.__where__))
-            args.extend(self.__args__['where'])
+            args.extend(self.__args__)
         if len(self.__orderBy__) > 0:
             self.__sql__.append('order by')
             self.__sql__.extend(self.__orderBy__)
@@ -292,23 +283,23 @@ class Model(dict, metaclass=ModelMetaClass):
         return True
 
 
-if __name__ == '__main__':
-    class User(Model):
-        id = IntegerField('id', primary_key=True)
-        name = StringField('name')
-
-    user = User(id=1, name='hello')
-    loop = asyncio.get_event_loop()
-
-
-    async def test(loop):
-        await create_pool(loop, db='test')
-        s = await user.where(['id',1]).update(['name','hello1'])
-        #await user.save()
-        print(s)
-        exit()
-
-
-    loop.run_until_complete(test(loop))
-    loop.close()
-    exit()
+# if __name__ == '__main__':
+#     class User(Model):
+#         id = IntegerField('id', primary_key=True)
+#         name = StringField('name')
+#
+#     user = User()
+#     loop = asyncio.get_event_loop()
+#
+#
+#     async def test(loop):
+#         await create_pool(loop, database='test')
+#         s = await User().find().all()
+#         #await user.save()
+#         print(s)
+#         exit()
+#
+#
+#     loop.run_until_complete(test(loop))
+#     loop.close()
+#     exit()
