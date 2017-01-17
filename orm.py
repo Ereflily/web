@@ -2,7 +2,7 @@
 __author__ = 'Ernie Peng'
 
 import asyncio, aiomysql
-import logging;logging.basicConfig(level=logging.INFO)
+import logging;logging.basicConfig(level=logging.WARNING)
 
 
 def log(sql, args=()):
@@ -136,15 +136,8 @@ class ModelMetaClass(type):
             attrs.pop(k)
         escapeFiled = list(map(lambda f: '`{}`'.format(f), fields))
         attrs['__table__'] = tableName
-        attrs['__where__'] = []
-        attrs['__args__'] = []
         attrs['__fields__'] = fields
         attrs['__mappings__'] = mappings
-        attrs['__select__'] = []
-        attrs['__limit__'] = []
-        attrs['__orderBy__'] = []
-        attrs['__sql__'] = []
-        attrs['__update__'] = []
         attrs['__insert__'] = "insert into `{}`({}) VALUES({}) ".format(tableName, ','.join(escapeFiled), create_args_string(len(fields)))
         attrs['__delete__'] = "delete from {}".format(tableName)
         return type.__new__(cls, name, base, attrs)
@@ -153,6 +146,12 @@ class ModelMetaClass(type):
 class Model(dict, metaclass=ModelMetaClass):
     def __init__(self, **kw):
         super(Model, self).__init__(**kw)
+        self.__where__ = []
+        self.__args__ = []
+        self.__select__ = []
+        self.__limit__ = []
+        self.__orderBy__ = []
+        self.__update__ = []
 
     def __getattr__(self, key):
         try:
@@ -193,22 +192,23 @@ class Model(dict, metaclass=ModelMetaClass):
         return self
 
     async def all(self):
+        sql = []
         if len(self.__select__) > 0:
-            self.__sql__.append("select {} from {}".format(','.join(self.__select__), self.__table__))
+            sql.append("select {} from {}".format(','.join(self.__select__), self.__table__))
         else:
-            self.__sql__.append("select * from {}".format(self.__table__))
+            sql.append("select * from {}".format(self.__table__))
         args = []
         if len(self.__where__) > 0:
-            self.__sql__.append('where')
-            self.__sql__.append(' and '.join(self.__where__))
+            sql.append('where')
+            sql.append(' and '.join(self.__where__))
             args.extend(self.__args__)
         if len(self.__orderBy__) > 0:
-            self.__sql__.append('order by')
-            self.__sql__.extend(self.__orderBy__)
+            sql.append('order by')
+            sql.extend(self.__orderBy__)
         if len(self.__limit__) > 0:
-            self.__sql__.append('limit')
-            self.__sql__.extend(self.__limit__)
-        rs = await select(' '.join(self.__sql__), args)
+            sql.append('limit')
+            sql.extend(self.__limit__)
+        rs = await select(' '.join(sql), args)
         if len(rs) == 0:
             return None
         return [self.__class__(**r) for r in rs]
@@ -284,17 +284,17 @@ class Model(dict, metaclass=ModelMetaClass):
 
 
 # if __name__ == '__main__':
-#     class User(Model):
-#         id = IntegerField('id', primary_key=True)
-#         name = StringField('name')
+#     class Article(Model):
+#         pass
 #
-#     user = User()
+#     article = Article()
 #     loop = asyncio.get_event_loop()
 #
 #
 #     async def test(loop):
 #         await create_pool(loop, database='test')
-#         s = await User().find().all()
+#         s = await article.find().where(['id',1]).limit(1).all()
+#         s = await article.find().where(['id',1]).limit(1).all()
 #         #await user.save()
 #         print(s)
 #         exit()

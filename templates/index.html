@@ -1,0 +1,14 @@
+<?python extends 'main.html'?>
+<?python block title?>我的网站<?python endblock?>
+<?python block content?>
+<div  class="uk-card uk-margin-large-top uk-animation-slide-bottom" style="margin-left: 9%;margin-right: 9%">
+    <?python for article in articles:?>
+    <article class="uk-article">
+        <div class="article uk-margin-medium-top">
+            <h1 class="title uk-heading-divider"><a href="/article/<?= article['id'] =?>.html" class="uk-link-reset"><?= article['title'] =?></a></h1>
+            <?= article['description'] =?>
+        </div>
+    </article>
+    <?python endfor?>
+</div>
+<?python endblock?>

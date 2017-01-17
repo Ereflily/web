@@ -1,6 +1,7 @@
 from webframe import get
 from aiohttp import web
 from Model.User import User
+from Model.Article import  Article
 import logging;logging.basicConfig(level=logging.INFO)
 
 @get('/blog/{id}.html')
@@ -9,6 +10,8 @@ def blog(*, id, request):
 
 @get('/')
 async def index():
+    articles = await Article().find().all()
     return {
-        '__template__' : 'test',
+        '__template__' : 'index',
+        'articles' : articles
     }

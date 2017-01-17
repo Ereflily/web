@@ -5,7 +5,7 @@ import logging;logging.basicConfig(level=logging.INFO)
 import asyncio, os, json, time
 from aiohttp import web
 from jinja2 import Environment, FileSystemLoader
-from config_default import config
+from my_config import config
 
 import orm
 from webframe import add_static, add_routes

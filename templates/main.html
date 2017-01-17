@@ -11,14 +11,14 @@
 </head>
 <body>
     <nav class="uk-navbar-container uk-card uk-card-default uk-flex uk-flex-center" uk-sticky="" uk-navbar>
-        <div class="uk-navbar-left" style="margin-left: 20%">
+        <div class="uk-navbar-left" style="margin-left: 23%">
             <ul class="uk-navbar-nav">
                 <li data-url="blogs" class="uk-animation-slide-top uk-background-muted"><a href="/"><i uk-icon="icon:home" class="uk-margin-small-right"></i> 首页</a></li>
                 <li class="uk-animation-slide-top uk-background-muted"><a target="_blank" href="#"><i class="uk-icon-book"></i> 教程</a></li>
                 <li class="uk-animation-slide-top uk-background-muted"><a target="_blank" href="#"><i class="uk-icon-code"></i> 源码</a></li>
             </ul>
         </div>
-        <div class="uk-navbar-right" style="margin-right: 20%">
+        <div class="uk-navbar-right" style="margin-right: 23%">
             <ul class="uk-navbar-nav">
                 <?python if user ?>
                 <li class="uk-parent" data-uk-dropdown>
@@ -37,58 +37,23 @@
         </div>
     </nav>
     <div class="uk-container uk-container-center">
-        <div class="uk-grid">
-            <!-- content -->
             <?python block content ?>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
             <?python endblock ?>
-            <!-- // content -->
-        </div>
     </div>
 
     <div class="uk-margin-large-top" style="background-color:#eee; border-top:1px solid #ccc;">
         <div class="uk-container uk-container-center uk-text-center">
             <div class="uk-panel uk-margin-top uk-margin-bottom">
                 <p>
-                    <a target="_blank" href="#" class="uk-icon-button uk-icon-weibo"></a>
-                    <a target="_blank" href="#" class="uk-icon-button uk-icon-github"></a>
-                    <a target="_blank" href="#" class="uk-icon-button uk-icon-linkedin-square"></a>
-                    <a target="_blank" href="#" class="uk-icon-button uk-icon-twitter"></a>
+                    <a target="_blank" href="#" class="uk-margin-small-right"><img src="/static/css/dist/images/weibo.svg" width="40" height="40"></a>
+                    <a target="_blank" href="#" class="uk-margin-small-right"><img src="/static/css/dist/images/wechat.svg" width="40" height="40"></a>
+                    <a target="_blank" href="#" uk-icon="icon:github;ratio:2" class="uk-margin-small-right"></a>
+                    <a target="_blank" href="#" uk-icon="icon:linkedin;ratio:2" class="uk-margin-small-right"></a>
+                    <a target="_blank" href="#" uk-icon="icon:twitter;ratio:2"></a>
                 </p>
-                <p>Powered by <a href="#">Awesome Python Webapp</a>. Copyright &copy; 2014. [<a href="/manage/" target="_blank">Manage</a>]</p>
-                <p><a href="http://www.liaoxuefeng.com/" target="_blank">www.liaoxuefeng.com</a>. All rights reserved.</p>
-                <a target="_blank" href="#"><i class="uk-icon-html5" style="font-size:64px; color: #444;"></i></a>
+                <p>Powered by <a href="javascript:;">MyWebapp</a>. Copyright &copy; 2017. </p>
+                <p> All rights reserved.</p>
+                <img src="/static/css/dist/images/html5.svg" width="40" height="40">
             </div>
         </div>
     </div>
